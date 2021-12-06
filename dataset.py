@@ -35,8 +35,8 @@ class CoraDataset(Dataset):
         n_nodes = len(labels)
         citations = pd.read_csv(datadir / "citations.csv")
         adjacency = torch.zeros(
-            n_nodes,
-            n_nodes,
+            self.n_nodes,
+            self.n_nodes,
             dtype=torch.bool,
             device=device,
         )

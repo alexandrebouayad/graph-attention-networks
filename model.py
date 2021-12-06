@@ -20,7 +20,6 @@ class GraphAttention(nn.Module):
         e1, e2 = e.split(1, dim=1)
         e = e1.transpose(1, 2) + e2
         e = self.leaky_relu(e)
-        adjacency |= torch.eye(adjacency.shape[0], dtype=torch.bool)
         e[~adjacency] = float("-inf")
         return self.softmax(e)
 
@@ -72,6 +71,7 @@ class GraphAttentionNetwork(nn.Module):
 
     def forward(self, h, adjacency):
         h = h.transpose(1, 2)
+        (adjacency.diagonal())[:] = True
         h = self.first_layer(h, adjacency)
         h = self.second_layer(h, adjacency)
         return h.transpose(1, 2)
