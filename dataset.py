@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 import torch
-from numpy import dtype
+from torch.nn.functional import normalize
 from torch.utils.data import Dataset
 
 
@@ -23,7 +23,7 @@ class CoraDataset(Dataset):
         )
         for i, j in content.values:
             features[i, j] = 1
-        features /= features.sum(dim=1)
+        features = normalize(features, p=1, eps=0)
         self.features = features
 
         labels = pd.read_csv(datadir / "labels.csv")["label"]
