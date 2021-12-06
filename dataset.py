@@ -2,28 +2,57 @@ from pathlib import Path
 
 import pandas as pd
 import torch
+from numpy import dtype
 from torch.utils.data import Dataset
 
 
 class CoraDataset(Dataset):
-    def __init__(self, datadir, train=True):
-        datadir = Path(datadir)
-        self.train = train
+    n_nodes = 2708
+    n_features = 1433
+    n_classes = 7
 
-        words = pd.read_csv(datadir / "words.csv")
-        features = pd.get_dummies(words, columns=["word"])
-        features = features.groupby("paper").sum()
-        self.features = torch.tensor(features.values, dtype=torch.float)
+    def __init__(self, datadir, *, device=None):
+        datadir = Path(datadir)
+
+        content = pd.read_csv(datadir / "content.csv")
+        features = torch.zeros(
+            self.n_nodes,
+            self.n_features,
+            dtype=torch.float,
+            device=device,
+        )
+        for i, j in content.values:
+            features[i, j] = 1
+        self.features = features
 
         labels = pd.read_csv(datadir / "labels.csv")["label"]
-        self.labels = torch.tensor(labels.values, dtype=torch.long)
+        self.labels = torch.tensor(
+            labels.values,
+            dtype=torch.long,
+            device=device,
+        )
 
         n_nodes = len(labels)
         citations = pd.read_csv(datadir / "citations.csv")
-        adjacency = torch.eye(n_nodes, dtype=torch.bool)
+        adjacency = torch.zeros(
+            n_nodes,
+            n_nodes,
+            dtype=torch.bool,
+            device=device,
+        )
         for i, j in citations.values:
             adjacency[i, j] = True
         self.adjacency = adjacency
+
+        train_mask = torch.zeros_like(self.labels, dtype=bool, device=device)
+        valid_mask = torch.zeros_like(self.labels, dtype=bool, device=device)
+        test_mask = torch.zeros_like(self.labels, dtype=bool, device=device)
+        train_mask[0:140] = True
+        valid_mask[140 : 140 + 500] = True
+        test_mask[-1000:] = True
+        self.train_mask = train_mask
+        self.valid_mask = valid_mask
+        self.test_mask = test_mask
 
     def __len__(self):
         return 1
@@ -31,18 +60,11 @@ class CoraDataset(Dataset):
     def __getitem__(self, idx):
         if idx > 0:
             raise IndexError
-        if self.train:
-            train_mask = torch.zeros_like(self.labels, dtype=bool)
-            valid_mask = torch.zeros_like(self.labels, dtype=bool)
-            train_mask[0:140] = True
-            valid_mask[140 : 140 + 500] = True
-            return (
-                self.features,
-                self.labels,
-                self.adjacency,
-                train_mask,
-                valid_mask,
-            )
-        test_mask = torch.zeros_like(self.labels, dtype=bool)
-        test_mask[-1000:] = True
-        return self.features, self.labels, self.adjacency, test_mask
+        return (
+            self.features,
+            self.labels,
+            self.adjacency,
+            self.train_mask,
+            self.valid_mask,
+            self.test_mask,
+        )
