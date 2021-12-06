@@ -23,6 +23,7 @@ class CoraDataset(Dataset):
         )
         for i, j in content.values:
             features[i, j] = 1
+        features /= features.sum(dim=1)
         self.features = features
 
         labels = pd.read_csv(datadir / "labels.csv")["label"]
