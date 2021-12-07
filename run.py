@@ -58,7 +58,7 @@ def test(dataset, *, model, loss_fn):
     return test_loss, test_accuracy
 
 
-def main():
+def main(bias=False):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     dataset = CoraDataset(DATADIR, device=device)
     model = GraphAttentionNetwork(
@@ -66,6 +66,7 @@ def main():
         hidden_units=HIDDEN_UNITS,
         n_classes=dataset.n_classes,
         n_heads=N_HEADS,
+        bias=bias,
     )
     model.to(device)
 
@@ -93,12 +94,11 @@ def main():
             loss_fn=loss_fn,
         )
 
-        # if valid_loss > min_valid_loss and valid_accuracy < max_valid_accuracy:
-        if valid_accuracy < max_valid_accuracy:
+        if valid_loss > min_valid_loss and valid_accuracy < max_valid_accuracy:
             stop_counter += 1
         else:
             stop_counter = 0
-            # min_valid_loss = min(min_valid_loss, valid_loss)
+            min_valid_loss = min(min_valid_loss, valid_loss)
             max_valid_accuracy = max(max_valid_accuracy, valid_accuracy)
 
         print(

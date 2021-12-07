@@ -56,7 +56,14 @@ class GraphAttentionLayer(nn.Module):
 
 
 class GraphAttentionNetwork(nn.Module):
-    def __init__(self, in_features, hidden_units, n_classes, n_heads):
+    def __init__(
+        self,
+        in_features,
+        hidden_units,
+        n_classes,
+        n_heads,
+        bias=False,
+    ):
         super().__init__()
         self.first_layer = GraphAttentionLayer(
             in_features,
@@ -72,6 +79,12 @@ class GraphAttentionNetwork(nn.Module):
         self.dropout = nn.Dropout(DROPOUT_PROBA)
         self.elu = nn.ELU()
         self.log_softmax = nn.LogSoftmax(dim=1)
+        if bias:
+            first_bias = torch.zeros(hidden_units * n_heads[0])
+            second_bias = torch.zeros(n_classes)
+            self.first_bias = nn.Parameter(first_bias)
+            self.second_bias = nn.Parameter(second_bias)
+        self.bias = bias
 
     def forward(self, h, adjacency):
         adjacency_diag = adjacency.diagonal()
@@ -79,7 +92,11 @@ class GraphAttentionNetwork(nn.Module):
 
         h = self.dropout(h)
         h = self.first_layer(h, adjacency)
+        if self.bias:
+            h += self.first_bias
         h = self.elu(h)
         h = self.dropout(h)
         h = self.second_layer(h, adjacency)
+        if self.bias:
+            h += self.second_bias
         return self.log_softmax(h)
