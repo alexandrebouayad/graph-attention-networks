@@ -12,7 +12,7 @@ class GraphAttention(nn.Module):
         nn.init.xavier_uniform_(conv1d.weight)
         self.linear_layer = conv1d
         self.leaky_relu = nn.LeakyReLU(LEAKY_RELU_SLOPE)
-        self.softmax = nn.Softmax(dim=-1)
+        self.softmax = nn.Softmax(dim=1)
 
     def forward(self, h, adjacency):
         e = self.linear_layer(h)
@@ -71,6 +71,7 @@ class GraphAttentionNetwork(nn.Module):
         )
         self.dropout = nn.Dropout(DROPOUT_PROBA)
         self.elu = nn.ELU()
+        self.log_softmax = nn.LogSoftmax(dim=1)
 
     def forward(self, h, adjacency):
         h = h.transpose(1, 2)
@@ -82,5 +83,5 @@ class GraphAttentionNetwork(nn.Module):
         h = self.elu(h)
         h = self.dropout(h)
         h = self.second_layer(h, adjacency)
-
+        h = self.log_softmax(h)
         return h.transpose(1, 2)
