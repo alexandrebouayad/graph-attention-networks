@@ -83,7 +83,7 @@ def main():
     )
     model.to(device)
 
-    loss_fn = nn.CrossEntropyLoss()
+    loss_fn = nn.NLLLoss()
     optimizer = torch.optim.Adam(
         model.parameters(),
         lr=LEARNING_RATE,
