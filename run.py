@@ -106,6 +106,7 @@ def main():
             f"train: ({train_loss:.3f}, {train_accuracy:.3f})",
             f"validation: ({valid_loss:.3f}, {valid_accuracy:.3f})",
             f"test: ({test_loss:.3f}, {test_accuracy:.3f})",
+            f"stop_counter={stop_counter}",
             sep=", ",
         )
         if stop_counter == PATIENCE:
