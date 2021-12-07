@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 import torch.nn as nn
 
@@ -34,7 +33,6 @@ class GraphAttentionHead(nn.Module):
         self.dropout = nn.Dropout(DROPOUT_PROBA)
 
     def forward(self, h, adjacency):
-        h = self.dropout(h)
         h = self.linear_layer(h)
         e = self.attention(h, adjacency)
         e = self.dropout(e)
@@ -48,14 +46,12 @@ class GraphAttentionLayer(nn.Module):
             GraphAttentionHead(in_features, out_features)
             for _ in range(n_heads)
         )
-        self.elu = nn.ELU()
         self.final = final
 
     def forward(self, h, adjacency):
         h = torch.stack([head(h, adjacency) for head in self.heads])
         if self.final:
-            return self.elu(h.mean(dim=0))
-        h = self.elu(h)
+            return h.mean(dim=0)
         return torch.cat(list(h), dim=1)
 
 
@@ -63,15 +59,28 @@ class GraphAttentionNetwork(nn.Module):
     def __init__(self, in_features, hidden_units, n_classes, n_heads):
         super().__init__()
         self.first_layer = GraphAttentionLayer(
-            in_features, hidden_units, n_heads[0]
+            in_features,
+            hidden_units,
+            n_heads[0],
         )
         self.second_layer = GraphAttentionLayer(
-            hidden_units * n_heads[0], n_classes, n_heads[1], final=True
+            hidden_units * n_heads[0],
+            n_classes,
+            n_heads[1],
+            final=True,
         )
+        self.dropout = nn.Dropout(DROPOUT_PROBA)
+        self.elu = nn.ELU()
 
     def forward(self, h, adjacency):
         h = h.transpose(1, 2)
-        (adjacency.diagonal())[:] = True
+        adjacency_diag = adjacency.diagonal()
+        adjacency_diag[:] = True
+
+        h = self.dropout(h)
         h = self.first_layer(h, adjacency)
+        h = self.elu(h)
+        h = self.dropout(h)
         h = self.second_layer(h, adjacency)
+
         return h.transpose(1, 2)
