@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
+import torch.nn.functional as F
 
 from dataset import CoraDataset
 from model import GraphAttentionNetwork
@@ -20,61 +20,47 @@ def accuracy(logits, labels):
     return accuracy.float().mean().item()
 
 
-def train(dataloader, *, model, loss_fn, optimizer, patience):
-    min_valid_loss = float("inf")
-    max_valid_accuracy = 0
-    stop_counter = 0
+def train(dataset, *, model, loss_fn, optimizer):
+    features, labels, adjacency, train_mask, valid_mask, _ = dataset[0]
 
-    for features, labels, adjacency, train_mask, valid_mask, _ in dataloader:
-        if stop_counter == patience:
-            break
+    model.train()
+    pred = model(features, adjacency)
+    train_pred = pred[train_mask]
+    train_labels = labels[train_mask]
+    train_loss = loss_fn(train_pred, train_labels)
+    train_accuracy = accuracy(train_pred, train_labels)
 
-        model.train()
-        pred = model(features, adjacency)
-        train_pred = pred[train_mask]
-        train_labels = labels[train_mask]
-        train_loss = loss_fn(train_pred, train_labels)
-        train_accuracy = accuracy(train_pred, train_labels)
+    optimizer.zero_grad()
+    train_loss.backward()
+    optimizer.step()
 
-        optimizer.zero_grad()
-        train_loss.backward()
-        optimizer.step()
-
-        model.eval()
-        with torch.no_grad():
-            valid_pred = pred[valid_mask]
-            valid_labels = labels[valid_mask]
-            valid_loss = loss_fn(valid_pred, valid_labels)
-            valid_accuracy = accuracy(valid_pred, valid_labels)
-
-        if valid_loss > min_valid_loss and valid_accuracy < max_valid_accuracy:
-            stop_counter += 1
-        else:
-            stop_counter = 0
-            min_valid_loss = min(min_valid_loss, valid_loss)
-            max_valid_accuracy = max(max_valid_accuracy, valid_accuracy)
+    model.eval()
+    with torch.no_grad():
+        valid_pred = pred[valid_mask]
+        valid_labels = labels[valid_mask]
+        valid_loss = loss_fn(valid_pred, valid_labels)
+        valid_accuracy = accuracy(valid_pred, valid_labels)
 
     return train_loss, train_accuracy, valid_loss, valid_accuracy
 
 
 @torch.no_grad()
-def test(dataloader, *, model, loss_fn):
+def test(dataset, *, model, loss_fn):
+    features, labels, adjacency, _, _, test_mask = dataset[0]
+
     model.eval()
-    for features, labels, adjacency, _, _, test_mask in dataloader:
-        pred = model(features, adjacency)
-        test_pred = pred[test_mask]
-        test_labels = labels[test_mask]
-        test_loss = loss_fn(test_pred, test_labels)
-        test_accuracy = accuracy(test_pred, test_labels)
+    pred = model(features, adjacency)
+    test_pred = pred[test_mask]
+    test_labels = labels[test_mask]
+    test_loss = loss_fn(test_pred, test_labels)
+    test_accuracy = accuracy(test_pred, test_labels)
+
     return test_loss, test_accuracy
 
 
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
     dataset = CoraDataset(DATADIR, device=device)
-    dataloader = DataLoader(dataset)
-
     model = GraphAttentionNetwork(
         in_features=dataset.n_features,
         hidden_units=HIDDEN_UNITS,
@@ -83,23 +69,26 @@ def main():
     )
     model.to(device)
 
-    loss_fn = nn.NLLLoss()
+    loss_fn = F.nll_loss
     optimizer = torch.optim.Adam(
         model.parameters(),
         lr=LEARNING_RATE,
         weight_decay=WEIGHT_DECAY,
     )
 
+    min_valid_loss = float("inf")
+    max_valid_accuracy = 0
+    stop_counter = 0
+
     for epoch in range(N_EPOCHS):
         train_loss, train_accuracy, valid_loss, valid_accuracy = train(
-            dataloader,
+            dataset,
             model=model,
             loss_fn=loss_fn,
             optimizer=optimizer,
-            patience=PATIENCE,
         )
         test_loss, test_accuracy = test(
-            dataloader,
+            dataset,
             model=model,
             loss_fn=loss_fn,
         )
@@ -110,6 +99,15 @@ def main():
             f"test: ({test_loss:.3f}, {test_accuracy:.3f})",
             sep=", ",
         )
+
+        if valid_loss > min_valid_loss and valid_accuracy < max_valid_accuracy:
+            stop_counter += 1
+        else:
+            stop_counter = 0
+            min_valid_loss = min(min_valid_loss, valid_loss)
+            max_valid_accuracy = max(max_valid_accuracy, valid_accuracy)
+        if stop_counter == PATIENCE:
+            break
 
 
 if __name__ == "main":
