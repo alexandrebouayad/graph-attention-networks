@@ -6,11 +6,6 @@ import torch_geometric.transforms as T
 from torch_geometric.datasets import Planetoid
 from torch_geometric.nn import GATConv
 
-with TemporaryDirectory() as tmpdirname:
-    dataset = Planetoid("tmp", "cora", transform=T.NormalizeFeatures())
-    # dataset = Planetoid("tmp", "cora")
-    data = dataset[0]
-
 
 class Net(torch.nn.Module):
     def __init__(self, in_channels, out_channels):
@@ -20,6 +15,7 @@ class Net(torch.nn.Module):
             8,
             heads=8,
             dropout=0.6,
+            bias=False,
         )
         self.conv2 = GATConv(
             8 ** 2,
@@ -27,6 +23,7 @@ class Net(torch.nn.Module):
             heads=1,
             concat=False,
             dropout=0.6,
+            bias=False,
         )
 
     def forward(self, x, edge_index):
@@ -36,6 +33,11 @@ class Net(torch.nn.Module):
         x = self.conv2(x, edge_index)
         return F.log_softmax(x, dim=-1)
 
+
+with TemporaryDirectory() as tmpdirname:
+    dataset = Planetoid("tmp", "cora", transform=T.NormalizeFeatures())
+    # dataset = Planetoid("tmp", "cora")
+    data = dataset[0]
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = Net(dataset.num_features, dataset.num_classes).to(device)
