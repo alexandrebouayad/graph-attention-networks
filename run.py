@@ -92,6 +92,15 @@ def main():
             model=model,
             loss_fn=loss_fn,
         )
+
+        # if valid_loss > min_valid_loss and valid_accuracy < max_valid_accuracy:
+        if valid_accuracy < max_valid_accuracy:
+            stop_counter += 1
+        else:
+            stop_counter = 0
+            # min_valid_loss = min(min_valid_loss, valid_loss)
+            max_valid_accuracy = max(max_valid_accuracy, valid_accuracy)
+
         print(
             f"Epoch: {epoch + 1:05d}",
             f"train: ({train_loss:.3f}, {train_accuracy:.3f})",
@@ -99,13 +108,6 @@ def main():
             f"test: ({test_loss:.3f}, {test_accuracy:.3f})",
             sep=", ",
         )
-
-        if valid_loss > min_valid_loss and valid_accuracy < max_valid_accuracy:
-            stop_counter += 1
-        else:
-            stop_counter = 0
-            min_valid_loss = min(min_valid_loss, valid_loss)
-            max_valid_accuracy = max(max_valid_accuracy, valid_accuracy)
         if stop_counter == PATIENCE:
             break
 
