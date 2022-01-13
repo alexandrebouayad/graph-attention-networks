@@ -5,7 +5,7 @@ https://arxiv.org/abs/1710.10903.
 ## Prerequisites
 
 - Python 3.9
-- [requirements.txt](requirement.txt)
+- [requirements.txt](requirements.txt)
 
 ## Run
 
