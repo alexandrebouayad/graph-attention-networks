@@ -1,5 +1,4 @@
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 
 from dataset import CoraDataset
@@ -113,5 +112,5 @@ def main(bias=False):
             break
 
 
-if __name__ == "main":
+if __name__ == "__main__":
     main()
